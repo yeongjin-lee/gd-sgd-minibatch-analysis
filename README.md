@@ -34,7 +34,7 @@ dynamics.
 - `src/losses.py`: MSE loss implementation.
 - `src/plotting.py`: Plotting utilities for loss curves.
 
-- `experiments/exp1_loss_reduction.py`: Experiment 1 — Convergence trajectories with automatically tuned learning rates.
+- `experiments/exp1_loss_decrease.py`: Experiment 1 — Convergence trajectories with automatically tuned learning rates.
 - `experiments/exp2_noise_vs_batch.py`: Experiment 2 — Loss stability (noise) comparison with fixed learning rate over the first 50 updates.
 - `main.py`: Entry point to run experiments end-to-end.
 
