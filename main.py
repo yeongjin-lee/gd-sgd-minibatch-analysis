@@ -1,4 +1,4 @@
-from experiments.exp1_loss_reduction import run_exp1
+from experiments.exp1_loss_decrease import run_exp1
 from experiments.exp2_noise_vs_batch import run_exp2
 
 if __name__ == "__main__":
