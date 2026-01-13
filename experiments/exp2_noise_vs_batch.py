@@ -1,99 +1,136 @@
-# Experiment 2: Noise comparison by batch size
+# Experiment 2: Loss stability (noise) comparison
 # - Fixed learning rate for all methods: lr = 1e-4
-# - Compare the first 50 parameter updates (zoomed-in view) to highlight noise
-# - X-axis: Iterations (Updates), Y-axis: MSE Loss
-#
-# Expected qualitative behavior (noise level):
-#   SGD (batch=1) > Mini-batch (batch=16) > GD (batch=N)
+# - Train size fixed to 126 (to match the original experiment)
+# - Use numeric features only (drop Species) to match the original code path
+# - Record loss after each parameter update (SGD/MB have many updates),
+#   and plot only the first 50 updates (zoom-in view)
 
 import os
 import numpy as np
+import pandas as pd
+from sklearn.model_selection import train_test_split
 
-from src.data import load_fish_dataframe, make_train_matrix
-from src.losses import mse_loss
-from src.optimizers import step_gd, step_minibatch
 from src.plotting import plot_loss_histories
+
+
+def _load_numeric_only(csv_path: str):
+    """
+    Loads Fish.csv and returns:
+      X: numeric features [Length1, Length2, Length3, Height, Width]
+      y: target Weight
+    This matches the original experiment that did not use 'Species'.
+    """
+    df = pd.read_csv(csv_path)
+    df = df[df["Weight"] > 0]
+
+    y = df["Weight"].to_numpy().reshape(-1, 1)
+    X = df[["Length1", "Length2", "Length3", "Height", "Width"]].to_numpy()
+    return X, y
+
+
+def _standardize_train_only(X_train, X_test):
+    """Manual standardization to match the original implementation."""
+    mean = X_train.mean(axis=0)
+    std = X_train.std(axis=0)
+    std[std == 0] = 1.0
+    return (X_train - mean) / std, (X_test - mean) / std
+
+
+def _mse_half(y_pred, y_true):
+    """0.5 * mean squared error (matches the original)."""
+    diff = y_pred - y_true
+    return float(0.5 * np.mean(diff ** 2))
 
 
 def run_exp2(
     csv_path: str = "data/Fish.csv",
     lr: float = 1e-4,
-    updates: int = 50,
-    seed: int = 42,
+    epochs: int = 50,
+    train_size: int = 126,
     mb_batch_size: int = 16,
+    seed: int = 42,
+    zoom_updates: int = 50,
     save_path: str = "results/exp2_noise_vs_batch.png",
 ):
-    """
-    Runs Experiment 2 (noise vs batch size) with fixed learning rate.
+    # Load dataset (numeric-only)
+    if not os.path.exists(csv_path):
+        raise FileNotFoundError(f"'{csv_path}' not found. See data/README.md for download instructions.")
 
-    Parameters
-    ----------
-    csv_path : str
-        Path to Fish.csv (downloaded from Kaggle; not included in the repo).
-    lr : float
-        Fixed learning rate applied to GD/SGD/Mini-batch (poster setting: 1e-4).
-    updates : int
-        Number of parameter updates to record (poster zoom: 0~50).
-    seed : int
-        Random seed for reproducibility (initialization + sampling).
-    mb_batch_size : int
-        Mini-batch size for Mini-batch SGD (poster setting: 16).
-    save_path : str
-        Where to save the plot image.
-    """
-    # Load and preprocess data (train split only is used for these experiments).
-    df = load_fish_dataframe(csv_path, allow_dummy=False)
-    X, y, _, _ = make_train_matrix(df)
-    N, D = X.shape
+    X, y = _load_numeric_only(csv_path)
+    y = y.reshape(-1)  # original code uses 1D y
 
+    # Train/test split with fixed train size (matches original)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, train_size=train_size, random_state=seed
+    )
+
+    # Standardize using training stats only
+    X_train, X_test = _standardize_train_only(X_train, X_test)
+
+    N, D = X_train.shape
     rng = np.random.RandomState(seed)
 
-    # Use the same initialization for all methods for a fair comparison.
-    theta0 = rng.randn(D, 1) * 0.01
+    # Initialize weights as zeros (matches original)
+    w0 = np.zeros(D, dtype=float)
+    b0 = 0.0
 
-    # -------------------------
-    # GD: each "update" is one full-batch gradient step
-    # -------------------------
-    theta_gd = theta0.copy()
+    # ---------- GD (full batch): 1 update per epoch ----------
+    w_gd = w0.copy()
+    b_gd = float(b0)
     loss_gd = []
-    for _ in range(updates):
-        theta_gd = step_gd(X, y, theta_gd, lr)
-        loss_gd.append(mse_loss(X, y, theta_gd))
+    for _ in range(epochs):
+        y_pred = X_train @ w_gd + b_gd
+        diff = y_pred - y_train
+        gw = (X_train.T @ diff) / N
+        gb = float(np.mean(diff))
+        w_gd -= lr * gw
+        b_gd -= lr * gb
+        loss_gd.append(_mse_half(X_train @ w_gd + b_gd, y_train))
 
-    # -------------------------
-    # SGD (batch=1): each "update" samples one data point
-    # -------------------------
-    theta_sgd = theta0.copy()
+    # ---------- SGD (batch=1): many updates ----------
+    w_sgd = w0.copy()
+    b_sgd = float(b0)
     loss_sgd = []
-    for _ in range(updates):
-        idx = rng.randint(0, N)
-        xi = X[idx : idx + 1]
-        yi = y[idx : idx + 1]
-        theta_sgd = step_minibatch(xi, yi, theta_sgd, lr)
-        loss_sgd.append(mse_loss(X, y, theta_sgd))
+    for _ in range(epochs):
+        idx = rng.permutation(N)
+        for i in range(0, N, 1):
+            bi = idx[i:i+1]
+            Xb = X_train[bi]
+            yb = y_train[bi]
+            y_pred = Xb @ w_sgd + b_sgd
+            diff = y_pred - yb
+            gw = (Xb.T @ diff) / len(bi)
+            gb = float(np.mean(diff))
+            w_sgd -= lr * gw
+            b_sgd -= lr * gb
+            loss_sgd.append(_mse_half(X_train @ w_sgd + b_sgd, y_train))
 
-    # -------------------------
-    # Mini-batch SGD (batch=16): each "update" samples a random mini-batch
-    # -------------------------
-    theta_mb = theta0.copy()
+    # ---------- Mini-batch (batch=16): many updates ----------
+    w_mb = w0.copy()
+    b_mb = float(b0)
     loss_mb = []
-    for _ in range(updates):
-        batch_idx = rng.choice(N, size=min(mb_batch_size, N), replace=False)
-        xi = X[batch_idx]
-        yi = y[batch_idx]
-        theta_mb = step_minibatch(xi, yi, theta_mb, lr)
-        loss_mb.append(mse_loss(X, y, theta_mb))
+    for _ in range(epochs):
+        idx = rng.permutation(N)
+        for i in range(0, N, mb_batch_size):
+            bi = idx[i:i+mb_batch_size]
+            Xb = X_train[bi]
+            yb = y_train[bi]
+            y_pred = Xb @ w_mb + b_mb
+            diff = y_pred - yb
+            gw = (Xb.T @ diff) / len(bi)
+            gb = float(np.mean(diff))
+            w_mb -= lr * gw
+            b_mb -= lr * gb
+            loss_mb.append(_mse_half(X_train @ w_mb + b_mb, y_train))
 
-    # Ensure output directory exists
-    out_dir = os.path.dirname(save_path)
-    if out_dir:
-        os.makedirs(out_dir, exist_ok=True)
-
+    # Zoom-in: plot only the first 50 updates (matches xlim(-1,49) intent)
     histories = {
-        f"GD (lr={lr:.1g}, batch={N})": loss_gd,
-        f"SGD (lr={lr:.1g}, batch=1)": loss_sgd,
-        f"Mini-Batch (lr={lr:.1g}, batch={min(mb_batch_size, N)})": loss_mb,
+        f"GD (lr={lr:.1g}, batch={N})": loss_gd[:zoom_updates],
+        f"SGD (lr={lr:.1g}, batch=1)": loss_sgd[:zoom_updates],
+        f"Mini-batch (lr={lr:.1g}, batch={mb_batch_size})": loss_mb[:zoom_updates],
     }
+
+    os.makedirs(os.path.dirname(save_path) or ".", exist_ok=True)
 
     plot_loss_histories(
         histories,
