@@ -23,9 +23,9 @@ SGD exhibits the highest noise due to single-sample updates, Mini-batch SGD redu
 through partial averaging, and GD produces the smoothest but most computationally expensive
 optimization trajectory.
 
-This repository provides **fully reproducible scripts** for both experiments and is intended
-as a minimal, research-oriented implementation for understanding gradient-based optimization
-dynamics.
+Rather than focusing on exact numerical replication of any single figure, this repository
+aims to provide a **clean, reproducible, and interpretable experimental framework**
+for understanding gradient-based optimization dynamics.
 
 ## Project Structure
 - `src/optimizers.py`: Core NumPy implementations of GD, SGD, and Mini-batch SGD update rules.
@@ -34,7 +34,7 @@ dynamics.
 - `src/losses.py`: MSE loss implementation.
 - `src/plotting.py`: Plotting utilities for loss curves.
 
-- `experiments/exp1_loss_decrease.py`: Experiment 1 — Convergence trajectories with automatically tuned learning rates.
-- `experiments/exp2_noise_vs_batch.py`: Experiment 2 — Loss stability (noise) comparison with fixed learning rate over the first 50 updates.
+- `experiments/exp1_loss_decrease.py`: **Experiment 1** — Convergence trajectories with automatically tuned learning rates.
+- `experiments/exp2_noise_vs_batch.py`: **Experiment 2** — Loss stability (noise) comparison with fixed learning rate over the first 50 updates.
 - `main.py`: Entry point to run experiments end-to-end.
 
