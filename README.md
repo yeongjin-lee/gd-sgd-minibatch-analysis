@@ -26,3 +26,15 @@ optimization trajectory.
 This repository provides **fully reproducible scripts** for both experiments and is intended
 as a minimal, research-oriented implementation for understanding gradient-based optimization
 dynamics.
+
+## Project Structure
+- `src/optimizers.py`: Core NumPy implementations of GD, SGD, and Mini-batch SGD update rules.
+- `src/lr_search.py`: Learning-rate search utility (grid search over log-spaced candidates).
+- `src/data.py`: Dataset loading and preprocessing (sklearn used only for splitting/encoding/scaling).
+- `src/losses.py`: MSE loss implementation.
+- `src/plotting.py`: Plotting utilities for loss curves.
+
+- `experiments/exp1_loss_reduction.py`: Experiment 1 — Convergence trajectories with automatically tuned learning rates.
+- `experiments/exp2_noise_vs_batch.py`: Experiment 2 — Loss stability (noise) comparison with fixed learning rate over the first 50 updates.
+- `main.py`: Entry point to run experiments end-to-end.
+
