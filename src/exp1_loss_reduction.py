@@ -60,7 +60,7 @@ def run_exp1(csv_path="data/Fish.csv", epochs=50, seed=42, save_path="results/ex
         f"SGD (lr={best_lr_sgd:.3g}, batch=1)": loss_sgd,
     }
 
-    plot_loss_histories(histories, title="Loss Reduction: Auto-tuned by Average Loss", save_path=save_path)
+    plot_loss_histories(histories, title="Loss Decrease: GD vs SGD vs Mini-Batch SGD", save_path=save_path)
 
 if __name__ == "__main__":
     run_exp1()
